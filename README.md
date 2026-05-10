@@ -1,33 +1,23 @@
 # 🇩🇪 AnkiDeutsch: AI-Powered German Flashcard Generator
 
-> Turn your German vocabulary CSV into a professional Anki deck: with **two AI voices**, smart caching, and zero repeated API calls.
+> Pull vocab from a Google Sheet, generate dual AI audio, and ship a polished Anki deck: with smart caching so you never pay for the same word twice.
 
 ---
 
 ## ✨ What It Does
 
-You maintain a simple CSV file of German vocab. Run this script and it generates a ready-to-import `.apkg` Anki deck where every card has:
+You maintain a Google Sheet of German vocabulary. Run the script and it produces a ready-to-import `.apkg` Anki deck where every card has:
 
-- 🎙 **ElevenLabs voice**: slow, clear pronunciation (great for learning)
-- 🇩🇪 **Microsoft Neural voice (Edge TTS)**: native German accent (free, no API key needed)
-- 📝 English prompt on the front, German + pronunciation guide + notes on the back
-- ⚡ **Smart caching**: audio is only generated once per phrase. Re-run daily, pay only for new words.
+- 🎙 **ElevenLabs voice**: slow, clear pronunciation (great for drilling)
+- 🇩🇪 **Microsoft Edge TTS**: native German accent (free, no API key needed)
+- 📖 **Example sentence**: with its own dual audio, pronunciation guide, and English translation
+- 🏷 **Grammar tags**: rendered as colour-coded badges on the card
+- ⚡ **Smart caching**: audio is generated once and reused forever; re-run daily and only new words hit the API
+- 💰 **Cost ledger**: every run is logged to `cost_ledger.json` so you always know your ElevenLabs spend
 
 ---
 
-## 🖥️ CLI Run
-
-<p align="center">
-  <img width="700" alt="CLI run - generation" src="https://github.com/user-attachments/assets/8403ba51-f3b6-492d-b568-afeb643082dc" />
-</p>
-<p align="center">
-  <img width="700" alt="CLI run - cache hit" src="https://github.com/user-attachments/assets/b9610489-a89f-424d-ab92-2e3834750a1b" />
-</p>
-<p align="center">
-  <img width="700" alt="CLI run - summary" src="https://github.com/user-attachments/assets/39620323-1281-47b8-8289-15fb0cfe05e2" />
-</p>
-
-## 📸 Card Preview
+## 📸 Card Layout
 
 **Front:**
 ```
@@ -38,13 +28,20 @@ How are you?
 ```
 Wie geht es Ihnen?
 
-🎙 ElevenLabs (slow & clear)   ▶
-🇩🇪 Native German accent        ▶
+[formal] [phrase]
 
-Pronunciation: vee gayt es EE-nen
-Literal: How goes it you (formal)?
-Notes: Formal version. Use "dir" with friends.
+Pronunciation   / vee gayt es EE-nen /  ▶ ▶
+Literal         How goes it you?
+Notes           Formal. Use "Wie geht's?" with friends.
+
+── Example Sentence ──────────────────────
+Sentence        Wie geht es Ihnen heute?
+Pronunciation   / vee gayt es EE-nen HOY-tuh /
+Meaning         How are you today?
+Audio           ▶ ▶
 ```
+
+Cards inherit Anki's native light/dark theme automatically.
 
 ---
 
@@ -53,10 +50,10 @@ Notes: Formal version. Use "dir" with friends.
 ### 1. Install dependencies
 
 ```bash
-pip install genanki elevenlabs edge-tts python-dotenv
+pip install genanki elevenlabs edge-tts pydub python-dotenv gspread google-auth google-auth-oauthlib requests
 ```
 
-### 2. Set up your ElevenLabs API key
+### 2. Set your ElevenLabs API key
 
 Create a `.env` file in the project root:
 
@@ -64,59 +61,110 @@ Create a `.env` file in the project root:
 ELEVENLABS_API_KEY=your_api_key_here
 ```
 
-Get a free key at [elevenlabs.io](https://elevenlabs.io): free tier gives 10,000 chars/month.
+Get a free key at [elevenlabs.io](https://elevenlabs.io): the free tier includes 10,000 chars/month.
 
-### 3. Prepare your CSV
+### 3. Set up Google Sheets access
 
-Save it as `your_file.csv` with these columns:
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and create a project
+2. Enable the **Google Sheets API**
+3. Create an **OAuth 2.0 Desktop credential** and download it as `credentials.json` into the project root
+4. On first run the script will print an auth URL: open it in your browser, approve access, and paste the code back into the terminal. A `token.pickle` is saved so you won't be asked again.
 
-```csv
-english,german,literal,pronunciation,notes
-How are you?,Wie geht es Ihnen?,How goes it you?,"vee gayt es EE-nen","Formal. Use 'dir' with friends."
-Good morning,Guten Morgen,Good morning,GOO-ten MOR-gen,Standard greeting
-```
+### 4. Prepare your Google Sheet
+
+The sheet must have these column headers in row 1 (order doesn't matter):
 
 | Column | Required | Description |
 |---|---|---|
-| `english` | ✅ | The front of the card (your prompt) |
-| `german` | ✅ | The answer + what gets spoken aloud |
+| `english` | ✅ | Front of the card |
+| `german` | ✅ | The word/phrase: this is what gets spoken |
+| `pronunciation` | optional | Phonetic guide, e.g. `vee gayt es EE-nen` |
 | `literal` | optional | Word-for-word translation |
-| `pronunciation` | optional | Phonetic guide |
-| `notes` | optional | Grammar tips, usage context, etc. |
+| `grammar tags` | optional | Comma-separated tags, e.g. `verb, separable` |
+| `notes` | optional | Usage tips, grammar context |
+| `example sentence` | optional | A German example sentence |
+| `example sentence pronunciation` | optional | Phonetic guide for the example |
+| `example sentence translation` | optional | English meaning of the example |
 
-### 4. Run the script
+For pronunciation-only rows (e.g. teaching the `ch` sound), leave `english` blank and put the rule in `german`: the script handles it.
+
+### 5. Paste your Sheet URL into the script
+
+```python
+SHEET_URL = "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+```
+
+### 6. Run
 
 ```bash
 python generate_deck.py
 ```
 
-### 5. Import into Anki
+### 7. Import into Anki
 
 Open Anki → **File → Import** → select `german_deck_dual_audio.apkg`
 
-> ⚠️ If you've imported this deck before, **delete the old deck first** before re-importing so Anki picks up the new audio files.
+> ⚠️ If you've imported this deck before, delete the old deck in Anki first so it picks up the refreshed audio files correctly.
 
 ---
 
-## ⚡ Smart Caching: How It Works
+## ⚡ Smart Caching
 
 Every German phrase is hashed (MD5) and stored in `audio_cache.json`. On re-runs:
 
 ```
-[  1/52] Guten Morgen                     → ⚡ Cached (skipped API)
-[  2/52] Wie geht es Ihnen?               → ⚡ Cached (skipped API)
-[ 52/52] Auf Wiedersehen                  → ✅ EL | ✅ Edge   ← new word
+[  1/30] Guten Morgen                      ⚡ cache   ⚡ cache
+[  2/30] Wie geht es Ihnen?                ⚡ cache   ⚡ cache
+[ 30/30] Auf Wiedersehen                   ✅ new     ✅ new   ← new word
 ```
 
-Only **new words** hit the API. Your existing audio is reused and repackaged every time.
+Only new words hit the API. Everything else is repackaged from your local `audio/` folder for free.
 
-**Keep these two things between runs:**
+**Keep these between runs:**
 ```
-audio/             ← your generated MP3 files
-audio_cache.json   ← the index
+audio/             ← generated MP3 files
+audio_cache.json   ← the hash index
 ```
 
-If you edit a German phrase (even a typo fix), the hash changes and it gets regenerated automatically: which is the correct behaviour.
+Editing a German phrase (even fixing a typo) changes its hash, so it gets regenerated automatically: which is the correct behaviour.
+
+---
+
+## 💰 Cost Tracking
+
+Every run appends a record to `cost_ledger.json`:
+
+```json
+{
+  "runs": [
+    {
+      "timestamp": "2025-07-01T14:32:10",
+      "chars_sent": 312,
+      "cost_usd": 0.01560,
+      "words_generated": 8,
+      "examples_generated": 6
+    }
+  ],
+  "all_time_chars": 4821,
+  "all_time_cost_usd": 0.24105
+}
+```
+
+The terminal summary always shows both this-run and all-time totals:
+
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║  THIS RUN: ElevenLabs API                                           ║
+║    Characters sent    : 312                                          ║
+║    Cost               : $0.01560 USD                                 ║
+╠══════════════════════════════════════════════════════════════════════╣
+║  ALL TIME  (9 run(s) total)                                          ║
+║    Total characters   : 4,821                                        ║
+║    Total cost         : $0.24105 USD                                 ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
+
+Only ElevenLabs is billed: Edge TTS is always free.
 
 ---
 
@@ -125,9 +173,9 @@ If you edit a German phrase (even a typo fix), the hash changes and it gets rege
 All settings are at the top of `generate_deck.py`:
 
 ```python
-VOICE_ID   = "dFA3XRddYScy6ylAYTIO"   # Your ElevenLabs voice ID
+VOICE_ID   = "dFA3XRddYScy6ylAYTIO"   # ElevenLabs voice ID
 MODEL_ID   = "eleven_flash_v2_5"       # ElevenLabs model
-SPEED      = 0.7                        # 0.7 = slow/clear, 1.0 = normal
+SPEED      = 0.7                        # 0.7 = slow & clear, 1.0 = normal speed
 
 EDGE_VOICE = "de-DE-ConradNeural"      # Microsoft Neural German voice
 ```
@@ -143,14 +191,14 @@ EDGE_VOICE = "de-DE-ConradNeural"      # Microsoft Neural German voice
 
 ---
 
-## 💰 Cost
+## 💵 Pricing at a Glance
 
 | Source | Cost |
 |---|---|
 | Edge TTS (Microsoft) | **Free**: unlimited |
-| ElevenLabs | ~$0.05 per 1,000 characters |
+| ElevenLabs flash model | ~$0.05 per 1,000 characters |
 
-A typical deck of 200 phrases (~5,000 chars) costs roughly **$0.25** in ElevenLabs credits: and you only pay once per phrase thanks to caching.
+A 200-word deck with example sentences (~10,000 chars total) costs roughly **$0.50**: and you only ever pay once per phrase.
 
 ---
 
@@ -158,13 +206,15 @@ A typical deck of 200 phrases (~5,000 chars) costs roughly **$0.25** in ElevenLa
 
 ```
 ankideutsch/
-├── generate_deck.py         # Main script
-├── your_file.csv            # Your vocabulary (you maintain this)
-├── .env                     # API key (never commit this)
-├── audio_cache.json         # Auto-generated cache index
-├── audio/                   # Auto-generated MP3 files
-│   ├── german_el_a3f9c1.mp3
-│   └── german_edge_a3f9c1.mp3
+├── generate_deck.py              # Main script
+├── credentials.json              # Google OAuth credential (never commit)
+├── token.pickle                  # Auto-saved auth token
+├── .env                          # ElevenLabs API key (never commit)
+├── audio_cache.json              # Auto-generated cache index
+├── cost_ledger.json              # All-time cost log
+├── audio/                        # Auto-generated MP3 files
+│   ├── german_el_a3f9c1.mp3      # ElevenLabs audio
+│   └── german_edge_a3f9c1.mp3   # Edge TTS audio
 └── german_deck_dual_audio.apkg   # Output: import this into Anki
 ```
 
@@ -172,18 +222,7 @@ ankideutsch/
 
 ## 🧠 Why Anki?
 
-Anki uses **spaced repetition**: it shows you cards right before you'd forget them. Studies consistently show it's one of the most efficient ways to build long-term vocabulary retention. This tool removes the friction of creating and maintaining a high-quality deck so you can focus entirely on learning.
-
----
-
-## 🤝 Contributing
-
-PRs welcome! Ideas for future improvements:
-
-- [ ] Google Sheets integration (auto-pull from a live sheet)
-- [ ] Support for other languages
-- [ ] Sentence example audio
-- [ ] Reverse cards (German → English)
+Anki uses spaced repetition: it shows you cards right before you'd forget them. It's consistently one of the most efficient methods for long-term vocabulary retention. This tool removes the friction of building and maintaining a high-quality audio deck so you can focus entirely on learning.
 
 ---
 
