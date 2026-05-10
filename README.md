@@ -15,6 +15,18 @@ You maintain a simple CSV file of German vocab. Run this script and it generates
 
 ---
 
+## 🖥️ CLI Run
+
+<p align="center">
+  <img width="700" alt="CLI run - generation" src="https://github.com/user-attachments/assets/8403ba51-f3b6-492d-b568-afeb643082dc" />
+</p>
+<p align="center">
+  <img width="700" alt="CLI run - cache hit" src="https://github.com/user-attachments/assets/b9610489-a89f-424d-ab92-2e3834750a1b" />
+</p>
+<p align="center">
+  <img width="700" alt="CLI run - summary" src="https://github.com/user-attachments/assets/39620323-1281-47b8-8289-15fb0cfe05e2" />
+</p>
+
 ## 📸 Card Preview
 
 **Front:**
