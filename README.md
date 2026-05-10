@@ -31,7 +31,7 @@ You maintain a Google Sheet of German vocabulary. Run the script and it produces
 ## 📸 Card Preview
 
 <p align="center">
-  <img width="700" alt="Anki card: German word, grammar tags, pronunciation, example sentence" src="https://github.com/user-attachments/assets/179c909e-9531-4977-bbab-0e11ca2326c7" />
+  <img width="700" alt="Anki card: German word, grammar tags, pronunciation, example sentence" src="https://github.com/user-attachments/assets/ae855015-69f8-46da-9e99-d3a25d8b39ef" />
 </p>
 
 Each card shows the German word, grammar tag badges, pronunciation with inline audio buttons, and a fully labelled example sentence block (sentence → pronunciation → meaning → audio). Cards inherit Anki's native light/dark theme automatically.
